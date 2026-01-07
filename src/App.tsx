@@ -14,7 +14,7 @@ import SignUp from './components/SignUp';
 import CartComponent from './components/Cart';
 import LoadingSkeleton from './components/LoadingSkeleton';
 import Toast from './components/Toast';
-import { fetchUserCart, type Cart } from './services/api';
+import { fetchUserCart } from './services/api';
 
 const ITEMS_PER_PAGE = 8;
 
@@ -31,7 +31,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [token, setToken] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(null); // token은 localStorage에 저장되지만 현재 코드에서 직접 사용되지 않음
   const [username, setUsername] = useState<string>('');
   const [userId, setUserId] = useState<number | null>(null); // 사용자 ID (로그인 시 설정)
   const [showLogin, setShowLogin] = useState(false);
@@ -42,7 +42,7 @@ export default function App() {
   const [categories, setCategories] = useState<string[]>([]);
   const [sortOption, setSortOption] = useState<SortOption>('default');
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadProducts = useCallback(async () => {
     try {
@@ -53,17 +53,17 @@ export default function App() {
             page: currentPage,
             limit: ITEMS_PER_PAGE,
             search: searchQuery,
-            userId: isLoggedIn ? userId : undefined
+            userId: isLoggedIn && userId ? userId : undefined
           })
         : await fetchProducts({
             page: currentPage,
             limit: ITEMS_PER_PAGE,
             search: searchQuery,
-            userId: isLoggedIn ? userId : undefined
+            userId: isLoggedIn && userId ? userId : undefined
           });
       
       // 정렬 적용
-      let sortedProducts = [...response.products];
+      const sortedProducts = [...response.products];
       switch (sortOption) {
         case 'price-asc':
           sortedProducts.sort((a, b) => a.price - b.price);
@@ -123,7 +123,7 @@ export default function App() {
   const handleProductClick = async (product: Product) => {
     // API에서 최신 상품 정보 가져오기
     try {
-      const latestProduct = await fetchProductById(product.id, isLoggedIn ? userId : undefined);
+      const latestProduct = await fetchProductById(product.id, isLoggedIn && userId ? userId : undefined);
       if (latestProduct) {
         setSelectedProduct(latestProduct);
       } else {
@@ -289,6 +289,13 @@ export default function App() {
       }
     }
   }, []);
+  
+  // token이 변경되면 로그인 상태 동기화
+  useEffect(() => {
+    if (!token && isLoggedIn) {
+      setIsLoggedIn(false);
+    }
+  }, [token, isLoggedIn]);
 
   // 카테고리 목록 로드
   useEffect(() => {
@@ -481,7 +488,7 @@ export default function App() {
             setBalance(newBalance);
             loadBalance();
           }}
-          onPurchase={(cart: Cart) => {
+          onPurchase={() => {
             setShowCart(false);
             loadCartItemCount();
           }}
